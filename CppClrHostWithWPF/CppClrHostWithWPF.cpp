@@ -6,6 +6,7 @@
 #include <sstream>
 
 #define MAX_LOADSTRING 100
+#define WM_INITCLR (WM_USER + 0x0001)
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -23,7 +24,10 @@ HRESULT RuntimeHost(PCWSTR pszVersion, PCWSTR pszAssemblyPath, PCWSTR pszClassNa
 
 void hideSplashScreen()
 {
-    !PostMessage(hSplashScreenWnd, WM_CLOSE, 0, 0);
+    if (!PostMessage(hSplashScreenWnd, WM_CLOSE, 0, 0))
+    {
+        //log
+    }
 }
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
@@ -49,7 +53,12 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     MSG msg;
 
-    RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main", (void*)hideSplashScreen);
+    // you can call here RuntimeHost but we want to let splashscreen window
+    // to initialize and activate first and then to initialize clr
+    if (!PostMessage(hSplashScreenWnd, WM_INITCLR, 0, 0))
+    {
+        //log
+    }
 
     // Main message loop:
     while (GetMessage(&msg, nullptr, 0, 0))
@@ -80,12 +89,12 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.cbClsExtra     = 0;
     wcex.cbWndExtra     = 0;
     wcex.hInstance      = hInstance;
-    wcex.hIcon          = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_CPPCLRHOSTWITHWPF));
-    wcex.hCursor        = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
-    wcex.lpszMenuName   = MAKEINTRESOURCEW(IDC_CPPCLRHOSTWITHWPF);
-    wcex.lpszClassName  = szWindowClass;
-    wcex.hIconSm        = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_CPPCLRHOSTWITHWPF));
+    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+    wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_CPPCLRHOSTWITHWPF);
+    wcex.lpszClassName = szWindowClass;
+    wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
 
     return RegisterClassExW(&wcex);
 }
@@ -104,8 +113,17 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // Store instance handle in our global variable
 
+   // old trick (a hidden owner window) to make the splash screen appear in the Alt+Tab list, but not in the taskbar. 
+   // If you want the splash screen to also appear in the taskbar, you could drop the hidden owner window.
+
+   HWND hwndOwner = CreateWindowExW(WS_EX_TOOLWINDOW, szWindowClass, NULL, NULL,
+       0, 0, 0, 0, NULL, NULL, hInstance, NULL);
+
+   //hSplashScreenWnd = CreateWindowExW(WS_EX_LAYERED, szWindowClass, NULL, WS_POPUP | WS_VISIBLE,
+   //    0, 0, 0, 0, hwndOwner, NULL, hInstance, NULL);
+
    hSplashScreenWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
-      CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
+       CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, hwndOwner, nullptr, hInstance, nullptr);
 
    if (!hSplashScreenWnd)
    {
@@ -132,22 +150,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
     switch (message)
     {
-    case WM_COMMAND:
-        {
-            int wmId = LOWORD(wParam);
-            // Parse the menu selections:
-            switch (wmId)
-            {
-            case IDM_ABOUT:
-                DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
-                break;
-            case IDM_EXIT:
-                DestroyWindow(hWnd);
-                break;
-            default:
-                return DefWindowProc(hWnd, message, wParam, lParam);
-            }
-        }
+    case WM_INITCLR:
+        RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main", (void*)hideSplashScreen);
         break;
     case WM_PAINT:
         {
