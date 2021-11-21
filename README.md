@@ -1,6 +1,6 @@
-# NativeClrHostWithWPf
+# Debugging
 
-To have this working you need to copy manually ApplicationLib.dll to .exe file location
+- Right click on cpp project, Debugging->Debugger Type set to Mixed
 
 # Resources
 - Using .config files https://stackoverflow.com/questions/9900639/hosting-clr-and-programmatically-providing-app-config
