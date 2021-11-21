@@ -20,6 +20,7 @@ WARRANTIES OF MERCHANTABILITY AND/OR FITNESS FOR A PARTICULAR PURPOSE.
 #include <windows.h>
 
 #include <metahost.h>
+#include <sstream>
 #pragma comment(lib, "mscoree.lib")
 
 // Import mscorlib.tlb (Microsoft Common Language Runtime Class Library).
@@ -60,7 +61,7 @@ using namespace mscorlib;
 //
 //   RETURN VALUE: HRESULT of the demo.
 //
-HRESULT RuntimeHost(PCWSTR pszVersion, PCWSTR pszAssemblyPath, PCWSTR pszClassName, PCWSTR pszStaticMethodName)
+HRESULT RuntimeHost(PCWSTR pszVersion, PCWSTR pszAssemblyPath, PCWSTR pszClassName, PCWSTR pszStaticMethodName, void* pHostCallback)
 {
     HRESULT hr;
 
@@ -73,9 +74,11 @@ HRESULT RuntimeHost(PCWSTR pszVersion, PCWSTR pszAssemblyPath, PCWSTR pszClassNa
     // ICLRRuntimeHost does not support loading the .NET v1.x runtimes.
     ICLRRuntimeHost *pClrRuntimeHost = NULL;
 
-    // The static method in the .NET class to invoke.
-    PCWSTR pszStringArg = L"";
     DWORD dwLengthRet;
+
+    // convert pointer value to wstring
+    std::wstringstream stream;
+    stream << pHostCallback;
 
     // 
     // Load and start the .NET runtime.
@@ -152,9 +155,8 @@ HRESULT RuntimeHost(PCWSTR pszVersion, PCWSTR pszAssemblyPath, PCWSTR pszClassNa
     // set to S_OK, pReturnValue is set to the integer value returned by the 
     // invoked method. Otherwise, pReturnValue is not set.
 
-
     hr = pClrRuntimeHost->ExecuteInDefaultAppDomain(pszAssemblyPath, 
-        pszClassName, pszStaticMethodName, pszStringArg, &dwLengthRet);
+        pszClassName, pszStaticMethodName, stream.str().c_str(), &dwLengthRet);
 
     if (FAILED(hr))
     {

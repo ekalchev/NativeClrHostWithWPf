@@ -3,6 +3,7 @@
 
 #include "framework.h"
 #include "CppClrHostWithWPF.h"
+#include <sstream>
 
 #define MAX_LOADSTRING 100
 
@@ -10,6 +11,7 @@
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+HWND hSplashScreenWnd;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -17,7 +19,12 @@ BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
-HRESULT RuntimeHost(PCWSTR pszVersion, PCWSTR pszAssemblyPath, PCWSTR pszClassName, PCWSTR pszStaticMethodName);
+HRESULT RuntimeHost(PCWSTR pszVersion, PCWSTR pszAssemblyPath, PCWSTR pszClassName, PCWSTR pszStaticMethodName, void* pHostCallback);
+
+void hideSplashScreen()
+{
+    !PostMessage(hSplashScreenWnd, WM_CLOSE, 0, 0);
+}
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
@@ -26,8 +33,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 {
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
-
-    // TODO: Place code here.
 
     // Initialize global strings
     LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
@@ -44,7 +49,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 
     MSG msg;
 
-    RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main");
+    RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main", (void*)hideSplashScreen);
 
     // Main message loop:
     while (GetMessage(&msg, nullptr, 0, 0))
@@ -99,16 +104,16 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
    hInst = hInstance; // Store instance handle in our global variable
 
-   HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+   hSplashScreenWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
       CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, nullptr, nullptr, hInstance, nullptr);
 
-   if (!hWnd)
+   if (!hSplashScreenWnd)
    {
       return FALSE;
    }
 
-   ShowWindow(hWnd, nCmdShow);
-   UpdateWindow(hWnd);
+   ShowWindow(hSplashScreenWnd, nCmdShow);
+   UpdateWindow(hSplashScreenWnd);
 
    return TRUE;
 }

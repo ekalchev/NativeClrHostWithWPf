@@ -1,8 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
-
-  <PropertyGroup>
-    <TargetFramework>net48</TargetFramework>
-    <UseWPF>true</UseWPF>
-  </PropertyGroup>
-
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<UseWPF>true</UseWPF>
+		<Platforms>x86;x64</Platforms>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+	</PropertyGroup>
+	<Target Name="CopyToOutput" AfterTargets="AfterBuild">
+		<Copy SourceFiles="$(OutDir)$(TargetName).dll" DestinationFolder="..\$(Platform)\$(Configuration)" />
+	</Target>
 </Project>

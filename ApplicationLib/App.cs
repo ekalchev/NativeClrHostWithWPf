@@ -18,12 +18,12 @@ namespace ApplicationLib
 {
     public partial class App : Application
     {
-        private static Thread mainThread;
-        public static event EventHandler MainWindowShown;
+        private readonly Action hideSplashScreen;
 
-        public App()
+        public App(Action hideSplashScreen)
         {
             ShutdownMode = ShutdownMode.OnMainWindowClose;
+            this.hideSplashScreen = hideSplashScreen;
         }
 
         public void InitializeComponent()
@@ -31,27 +31,9 @@ namespace ApplicationLib
             StartupUri = new Uri("pack://application:,,,/ApplicationLib;component/MainWindow.xaml", UriKind.Absolute);
         }
 
-        internal void NotifyMainWindowShown()
+        public void NotifyMainWindowShown()
         {
-            MainWindowShown.Invoke(this, EventArgs.Empty);
-        }
-
-        public static void _Run()
-        {
-            mainThread = new Thread(() =>
-            {
-                App app = new App();
-                app.InitializeComponent();
-                app.Run();
-            });
-
-            mainThread.SetApartmentState(ApartmentState.STA);
-            mainThread.Start();
-        }
-
-        public static void WaitForExit()
-        {
-            mainThread.Join();
+            hideSplashScreen();
         }
     }
 }
