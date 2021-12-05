@@ -10,7 +10,7 @@
 
 #define WM_INITCLR (WM_USER + 0x0001)
 #define SPLASH_WINDOW_WIDTH_DIPS 520
-#define SPLASH_WINDOW_HEIGHT_DIPS 516
+#define SPLASH_WINDOW_HEIGHT_DIPS 520
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
@@ -203,10 +203,10 @@ LRESULT CALLBACK WndProcSplashScreen(HWND hWnd, UINT message, WPARAM wParam, LPA
 	switch (message)
 	{
 	case WM_INITCLR:
-		RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main", (void*)hideSplashScreen);
+		//RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main", (void*)hideSplashScreen);
 		break;
 	case WM_CREATE:
-		
+
 		pSplashScreen = new SplashScreen(hInst, hWnd, windowBorderColor);
 		pSplashScreen->Play();
 		break;
@@ -215,7 +215,6 @@ LRESULT CALLBACK WndProcSplashScreen(HWND hWnd, UINT message, WPARAM wParam, LPA
 		PAINTSTRUCT ps;
 		HDC hdc = BeginPaint(hWnd, &ps);
 		pSplashScreen->DrawCurrentFrame(hdc);
-
 		EndPaint(hWnd, &ps);
 	}
 	break;
@@ -232,8 +231,14 @@ LRESULT CALLBACK WndProcSplashScreen(HWND hWnd, UINT message, WPARAM wParam, LPA
 		pSplashScreen->OnTimer(wParam);
 		break;
 	case WM_ERASEBKGND:
+	{
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+		pSplashScreen->DrawBackground(hdc);
+		EndPaint(hWnd, &ps);
 		return TRUE; // do not let windows to manage erase background because that causes flickering with gif animation
-		break;
+	}
+	break;
 	default:
 		return DefWindowProc(hWnd, message, wParam, lParam);
 	}

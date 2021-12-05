@@ -7,7 +7,7 @@ SplashScreen::SplashScreen(HINSTANCE hInstance, HWND hWnd, Gdiplus::Color window
 	m_hWnd = hWnd;
 	m_iCurrentFrame = 0;
 	m_hInstance = hInstance;
-	m_pImage = LoadImageFromResource(MAKEINTRESOURCE(IDI_LOADING_GIF1_0x), L"GIF");
+	m_pLoadingAnimation = LoadImageFromResource(MAKEINTRESOURCE(IDI_LOADING_GIF1_0x), L"GIF");
 	m_timerId = 10001;
 
 	RECT rect;
@@ -18,50 +18,41 @@ SplashScreen::SplashScreen(HINSTANCE hInstance, HWND hWnd, Gdiplus::Color window
 	//First of all we should get the number of frame dimensions
 	//Images considered by GDI+ as:
 	//frames[animation_frame_index][how_many_animation];
-	UINT count = m_pImage->GetFrameDimensionsCount();
+	UINT count = m_pLoadingAnimation->GetFrameDimensionsCount();
 
 	//Now we should get the identifiers for the frame dimensions 
 	m_pDimensionIDs = new GUID[count];
-	m_pImage->GetFrameDimensionsList(m_pDimensionIDs, count);
+	m_pLoadingAnimation->GetFrameDimensionsList(m_pDimensionIDs, count);
 
 	//For gif image , we only care about animation set#0
 	WCHAR strGuid[39];
 	int result = StringFromGUID2(m_pDimensionIDs[0], strGuid, 39);
 
-	m_FrameCount = m_pImage->GetFrameCount(&m_pDimensionIDs[0]);
+	m_FrameCount = m_pLoadingAnimation->GetFrameCount(&m_pDimensionIDs[0]);
 
 	//PropertyTagFrameDelay is a pre-defined identifier 
 	//to present frame-delays by GDI+
-	UINT TotalBuffer = m_pImage->GetPropertyItemSize(PropertyTagFrameDelay);
+	UINT TotalBuffer = m_pLoadingAnimation->GetPropertyItemSize(PropertyTagFrameDelay);
 	m_pItem = (Gdiplus::PropertyItem*)malloc(TotalBuffer);
-	m_pImage->GetPropertyItem(PropertyTagFrameDelay, TotalBuffer, m_pItem);
-	m_pMemBitmap = new Gdiplus::Bitmap(m_windowSize->Width, m_windowSize->Height);
+	m_pLoadingAnimation->GetPropertyItem(PropertyTagFrameDelay, TotalBuffer, m_pItem);
+	m_pBackgroundBitmap = new Gdiplus::Bitmap(m_windowSize->Width, m_windowSize->Height);
+
+	Gdiplus::Graphics* pMemGraphics = Gdiplus::Graphics::FromImage(m_pBackgroundBitmap);
+	Gdiplus::Bitmap* backgroundImage = LoadImageFromResource(MAKEINTRESOURCE(IDI_BACKGROUND), L"PNG");
+	pMemGraphics->DrawImage(backgroundImage, 0, 0, m_windowSize->Width, m_windowSize->Height);
+	delete backgroundImage;
+	delete pMemGraphics;
 }
 
 SplashScreen::~SplashScreen()
 {
-	if (m_pDimensionIDs)
-	{
-		delete[] m_pDimensionIDs;
-	}
-
-	if (m_pItem)
-	{
-		free(m_pItem);
-	}
-
-	if (m_pMemBitmap)
-	{
-		delete m_pMemBitmap;
-	}
-
-	if (m_pImage)
-	{
-		delete m_pImage;
-	}
-
-	delete m_windowSize;
-	delete m_windowBorderPen;
+	if (m_pDimensionIDs) delete[] m_pDimensionIDs;
+	if (m_pItem) free(m_pItem);
+	if (m_pBackgroundBitmap) delete m_pBackgroundBitmap;
+	if (m_pLoadingAnimation) delete m_pLoadingAnimation;
+	if (m_windowSize) delete m_windowSize;
+	if (m_windowBorderPen) delete m_windowBorderPen;
+	if (m_pCachedBackgroundBitmap) delete m_pCachedBackgroundBitmap;
 }
 
 //To start play
@@ -70,7 +61,7 @@ void SplashScreen::Play()
 	//Set Current Frame at #0
 	m_iCurrentFrame = 0;
 	GUID Guid = Gdiplus::FrameDimensionTime;
-	m_pImage->SelectActiveFrame(&Guid, m_iCurrentFrame);
+	m_pLoadingAnimation->SelectActiveFrame(&Guid, m_iCurrentFrame);
 
 	//Use Timer
 	//NOTE HERE: frame-delay values should be multiply by 10
@@ -91,7 +82,7 @@ void SplashScreen::OnTimer(UINT_PTR nIDEvent)
 
 		//Change Active frame
 		GUID Guid = Gdiplus::FrameDimensionTime;
-		m_pImage->SelectActiveFrame(&Guid, m_iCurrentFrame);
+		m_pLoadingAnimation->SelectActiveFrame(&Guid, m_iCurrentFrame);
 
 		//New timer
 		SetTimer(m_hWnd, m_timerId, ((UINT*)m_pItem[0].value)[m_iCurrentFrame] * 10, NULL);
@@ -105,18 +96,31 @@ void SplashScreen::OnTimer(UINT_PTR nIDEvent)
 //Present current frame
 void SplashScreen::DrawCurrentFrame(HDC hdc)
 {
-	using namespace Gdiplus;
+	Gdiplus::Graphics* pGraphics = new Gdiplus::Graphics(hdc);
+	DrawCurrentFrame(pGraphics);
+	delete pGraphics;
+}
 
-	Gdiplus::Graphics* pMemGraphics = Gdiplus::Graphics::FromImage(m_pMemBitmap);
-	pMemGraphics->DrawImage(m_pImage, 0, 0, m_pImage->GetWidth(), m_pImage->GetHeight());
-	Rect rect = Rect(0, 0, m_windowSize->Width - 1, m_windowSize->Height - 1);
-	pMemGraphics->DrawRectangle(m_windowBorderPen, rect);
+void SplashScreen::DrawCurrentFrame(Gdiplus::Graphics* pGraphics)
+{
+	pGraphics->DrawImage(m_pLoadingAnimation, 1, 450, m_windowSize->Width - 2, m_pLoadingAnimation->GetHeight());
+}
 
-	Gdiplus::Graphics* pHdc = new Gdiplus::Graphics(hdc);
-	pHdc->DrawImage(m_pMemBitmap, 0, 0);
+void SplashScreen::DrawBackground(HDC hdc)
+{
+	Gdiplus::Rect rect = Gdiplus::Rect(0, 0, m_windowSize->Width - 1, m_windowSize->Height - 1);
+	Gdiplus::Graphics* pGraphics = new Gdiplus::Graphics(hdc);
 
-	delete pHdc;
-	delete pMemGraphics;
+	if (m_pCachedBackgroundBitmap == nullptr)
+	{
+		m_pCachedBackgroundBitmap = new Gdiplus::CachedBitmap(m_pBackgroundBitmap, pGraphics);
+	}
+
+	pGraphics->DrawCachedBitmap(m_pCachedBackgroundBitmap, 0, 0);
+	pGraphics->DrawRectangle(m_windowBorderPen, rect);
+	DrawCurrentFrame(pGraphics);
+
+	delete pGraphics;
 }
 
 Gdiplus::Bitmap* SplashScreen::LoadImageFromResource(const wchar_t* resid, const wchar_t* restype)

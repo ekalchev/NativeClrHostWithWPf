@@ -8,6 +8,7 @@
 #define IDI_LOADING_GIF1_0x				132
 #define IDI_LOADING_GIF1_2x				133
 #define IDI_LOADING_GIF1_6x				134
+#define IDI_BACKGROUND					135
 #define IDC_STATIC                      -1
 
 // Next default values for new objects

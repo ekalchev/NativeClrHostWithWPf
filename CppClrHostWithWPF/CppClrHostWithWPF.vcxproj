@@ -154,7 +154,7 @@
     <ResourceCompile Include="CppClrHostWithWPF.rc" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="bitmap1.bmp" />
+    <Image Include="background.png" />
     <Image Include="CppClrHostWithWPF.ico" />
     <Image Include="progress%400.8x.gif" />
     <Image Include="progress%401.2x.gif" />
