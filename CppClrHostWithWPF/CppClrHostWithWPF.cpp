@@ -4,133 +4,78 @@
 #include "framework.h"
 #include "CppClrHostWithWPF.h"
 #include <sstream>
-
-#include <objidl.h>
-#include <gdiplus.h>
-#pragma comment(lib,"gdiplus.lib")
+#include "SplashScreen.h"
 
 #define WM_INITCLR (WM_USER + 0x0001)
-
-using namespace Gdiplus;
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
 HWND hSplashScreenWnd;
+SplashScreen* pSplashScreen;
 
 // Forward declarations of functions included in this code module:
-ATOM                MyRegisterClass(HINSTANCE hInstance);
+ATOM                SplashRegisterClass(HINSTANCE hInstance);
+ATOM                DummyWindowRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
-LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK    WndProcDummyWindow(HWND, UINT, WPARAM, LPARAM);
+LRESULT CALLBACK    WndProcSplashScreen(HWND, UINT, WPARAM, LPARAM);
 
 HRESULT RuntimeHost(PCWSTR pszVersion, PCWSTR pszAssemblyPath, PCWSTR pszClassName, PCWSTR pszStaticMethodName, void* pHostCallback);
 
 void hideSplashScreen()
 {
-    if (!PostMessage(hSplashScreenWnd, WM_CLOSE, 0, 0))
-    {
-        //log
-    }
-}
-
-HBITMAP loadImageWithGdiPlus(LPCTSTR pszPngPath)
-{
-    wchar_t error[4096];
-
-    Image *pImage = Image::FromFile(pszPngPath);
-    
-    if (pImage->GetLastStatus() != Status::Ok)
-    {
-        wprintf(L"%s failed to load through GDI+", error);
-    }
-
-    UINT count = pImage->GetFrameDimensionsCount();
-
-    //Now we should get the identifiers for the frame dimensions 
-    auto m_pDimensionIDs = new GUID[count];
-    pImage->GetFrameDimensionsList(m_pDimensionIDs, count);
-
-    //For gif image , we only care about animation set#0
-    WCHAR strGuid[39];
-    StringFromGUID2(m_pDimensionIDs[0], strGuid, 39);
-    auto m_FrameCount = pImage->GetFrameCount(&m_pDimensionIDs[0]);
-
-    //PropertyTagFrameDelay is a pre-defined identifier 
-    //to present frame-delays by GDI+
-    UINT TotalBuffer = pImage->GetPropertyItemSize(PropertyTagFrameDelay);
-    auto m_pItem = (PropertyItem*)malloc(TotalBuffer);
-    pImage->GetPropertyItem(PropertyTagFrameDelay, TotalBuffer, m_pItem);
-
-    int width = pImage->GetWidth();
-    int height = pImage->GetHeight();
-
-    BITMAPINFO bmi;
-    bmi.bmiHeader.biBitCount = 32;
-    bmi.bmiHeader.biClrImportant = 0;
-    bmi.bmiHeader.biClrUsed = 0;
-    bmi.bmiHeader.biCompression = BI_RGB;
-    bmi.bmiHeader.biHeight = height;
-    bmi.bmiHeader.biPlanes = 1;
-    bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
-    bmi.bmiHeader.biSizeImage = 0; //calc later
-    bmi.bmiHeader.biWidth = width;
-    bmi.bmiHeader.biXPelsPerMeter = 0;
-    bmi.bmiHeader.biYPelsPerMeter = 0;
-    BYTE* pBmp = NULL;
-    HBITMAP hbm = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void**)&pBmp, NULL, 0);
-    HDC hdc = CreateCompatibleDC(NULL);
-    HGDIOBJ hobj = SelectObject(hdc, hbm);
-
-    Graphics graphics(hdc);
-    graphics.DrawImage(pImage, 0, 0);
-
-    SelectObject(hdc, hobj);
-    DeleteDC(hdc);
-    return hbm;
+	if (!PostMessage(hSplashScreenWnd, WM_CLOSE, 0, 0))
+	{
+		//log
+	}
 }
 
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
-                     _In_opt_ HINSTANCE hPrevInstance,
-                     _In_ LPWSTR    lpCmdLine,
-                     _In_ int       nCmdShow)
+	_In_opt_ HINSTANCE hPrevInstance,
+	_In_ LPWSTR    lpCmdLine,
+	_In_ int       nCmdShow)
 {
-    UNREFERENCED_PARAMETER(hPrevInstance);
-    UNREFERENCED_PARAMETER(lpCmdLine);
+	UNREFERENCED_PARAMETER(hPrevInstance);
+	UNREFERENCED_PARAMETER(lpCmdLine);
 
-    MyRegisterClass(hInstance);
+	SplashRegisterClass(hInstance);
+	DummyWindowRegisterClass(hInstance);
 
-    // Perform application initialization:
-    if (!InitInstance (hInstance, nCmdShow))
-    {
-        return FALSE;
-    }
+	Gdiplus::GdiplusStartupInput gdiplusStartupInput;
+	ULONG_PTR           gdiplusToken;
 
-    MSG msg;
+	Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 
-    // you can call here RuntimeHost but we want to let splashscreen window
-    // to initialize and activate first and then to initialize clr
-    if (!PostMessage(hSplashScreenWnd, WM_INITCLR, 0, 0))
-    {
-        //log
-    }
+	// Perform application initialization:
+	if (!InitInstance(hInstance, nCmdShow))
+	{
+		return FALSE;
+	}
 
-    GdiplusStartupInput gdiplusStartupInput;
-    ULONG_PTR           gdiplusToken;
+	MSG msg;
 
-    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+	// you can call here RuntimeHost but we want to let splashscreen window
+	// to initialize and activate first and then to initialize clr
+	if (!PostMessage(hSplashScreenWnd, WM_INITCLR, 0, 0))
+	{
+		//log
+	}
 
-    // Main message loop:
-    while (GetMessage(&msg, nullptr, 0, 0))
-    {
-        if (!TranslateAccelerator(msg.hwnd, 0, &msg))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-    }
+	// Main message loop:
+	while (GetMessage(&msg, nullptr, 0, 0))
+	{
+		if (!TranslateAccelerator(msg.hwnd, 0, &msg))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
+	}
 
-    GdiplusShutdown(gdiplusToken);
+	delete pSplashScreen;
 
-    return (int) msg.wParam;
+	Gdiplus::GdiplusShutdown(gdiplusToken);
+
+	return (int)msg.wParam;
 }
 
 //
@@ -138,25 +83,46 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 //
 //  PURPOSE: Registers the window class.
 //
-ATOM MyRegisterClass(HINSTANCE hInstance)
+ATOM SplashRegisterClass(HINSTANCE hInstance)
 {
-    WNDCLASSEXW wcex;
+	WNDCLASSEXW wcex;
 
-    wcex.cbSize = sizeof(WNDCLASSEX);
+	wcex.cbSize = sizeof(WNDCLASSEX);
 
-    wcex.style          = CS_HREDRAW | CS_VREDRAW;
-    wcex.lpfnWndProc    = WndProc;
-    wcex.cbClsExtra     = 0;
-    wcex.cbWndExtra     = 0;
-    wcex.hInstance      = hInstance;
-    wcex.hIcon = nullptr;
-    wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
-    wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wcex.lpszMenuName = nullptr;
-    wcex.lpszClassName = L"SplashScreen";
-    wcex.hIconSm = nullptr;
+	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = WndProcSplashScreen;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = nullptr;
+	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.lpszMenuName = nullptr;
+	wcex.lpszClassName = L"SplashScreen";
+	wcex.hIconSm = nullptr;
 
-    return RegisterClassExW(&wcex);
+	return RegisterClassExW(&wcex);
+}
+
+ATOM DummyWindowRegisterClass(HINSTANCE hInstance)
+{
+	WNDCLASSEXW wcex;
+
+	wcex.cbSize = sizeof(WNDCLASSEX);
+
+	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = WndProcDummyWindow;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = nullptr;
+	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.lpszMenuName = nullptr;
+	wcex.lpszClassName = L"DummyWindow";
+	wcex.hIconSm = nullptr;
+
+	return RegisterClassExW(&wcex);
 }
 
 //
@@ -171,29 +137,31 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
 //
 BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 {
-   hInst = hInstance; // Store instance handle in our global variable
+	hInst = hInstance; // Store instance handle in our global variable
 
-   // old trick (a hidden owner window) to make the splash screen appear in the Alt+Tab list, but not in the taskbar. 
-   // If you want the splash screen to also appear in the taskbar, you could drop the hidden owner window.
+	// old trick (a hidden owner window) to make the splash screen appear in the Alt+Tab list, but not in the taskbar. 
+	// If you want the splash screen to also appear in the taskbar, you could drop the hidden owner window.
 
-   HWND hwndOwner = CreateWindowExW(WS_EX_TOOLWINDOW, L"SplashScreen", nullptr, 0,
-       0, 0, 0, 0, nullptr, nullptr, hInstance, NULL);
+	HWND hwndOwner = CreateWindowExW(WS_EX_TOOLWINDOW, L"DummyWindow", nullptr, 0,
+		0, 0, 0, 0, nullptr, nullptr, hInstance, NULL);
 
-   //hSplashScreenWnd = CreateWindowExW(WS_EX_LAYERED, szWindowClass, NULL, WS_POPUP | WS_VISIBLE,
-   //    0, 0, 0, 0, hwndOwner, NULL, hInstance, NULL);
+	/*hSplashScreenWnd = CreateWindowExW(WS_EX_LAYERED, L"SplashScreen", NULL, WS_POPUP | WS_VISIBLE,
+		0, 0, 0, 0, hwndOwner, NULL, hInstance, NULL);*/
 
-   hSplashScreenWnd = CreateWindowW(L"SplashScreen", L"SplashScreenTitle", WS_OVERLAPPEDWINDOW,
-       CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, hwndOwner, nullptr, hInstance, nullptr);
+	hSplashScreenWnd = CreateWindowW(L"SplashScreen", L"SplashScreenTitle", WS_OVERLAPPED,
+		CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, hwndOwner, nullptr, hInstance, nullptr);
 
-   if (!hSplashScreenWnd)
-   {
-      return FALSE;
-   }
+	SetWindowLong(hSplashScreenWnd, GWL_STYLE, 0);
 
-   ShowWindow(hSplashScreenWnd, nCmdShow);
-   UpdateWindow(hSplashScreenWnd);
+	if (!hSplashScreenWnd)
+	{
+		return FALSE;
+	}
 
-   return TRUE;
+	ShowWindow(hSplashScreenWnd, nCmdShow);
+	UpdateWindow(hSplashScreenWnd);
+
+	return TRUE;
 }
 
 //
@@ -206,26 +174,56 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 //  WM_DESTROY  - post a quit message and return
 //
 //
-LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+LRESULT CALLBACK WndProcSplashScreen(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-    switch (message)
-    {
-    case WM_INITCLR:
-        RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main", (void*)hideSplashScreen);
-        break;
-    case WM_PAINT:
-        {
-            PAINTSTRUCT ps;
-            HDC hdc = BeginPaint(hWnd, &ps);
-            // TODO: Add any drawing code that uses hdc here...
-            EndPaint(hWnd, &ps);
-        }
-        break;
-    case WM_DESTROY:
-        PostQuitMessage(0);
-        break;
-    default:
-        return DefWindowProc(hWnd, message, wParam, lParam);
-    }
-    return 0;
+	switch (message)
+	{
+	case WM_INITCLR:
+		//RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main", (void*)hideSplashScreen);
+		break;
+	case WM_CREATE:
+		pSplashScreen = new SplashScreen(hInst, hWnd);
+		pSplashScreen->Play();
+		break;
+	case WM_PAINT:
+	{
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+		pSplashScreen->DrawCurrentFrame(hdc);
+
+		EndPaint(hWnd, &ps);
+	}
+	break;
+	case WM_NCHITTEST: {
+		LRESULT hit = DefWindowProc(hWnd, message, wParam, lParam);
+		if (hit == HTCLIENT) hit = HTCAPTION; // move window by clicking its client area
+		return hit;
+	}
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	case WM_TIMER:
+		pSplashScreen->OnTimer(wParam);
+		break;
+	case WM_ERASEBKGND:
+		return TRUE; // do not let windows to manage erase background because that causes flickering with gif animation
+		break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	return 0;
+}
+
+LRESULT CALLBACK WndProcDummyWindow(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	switch (message)
+	{
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+
+	return 0;
 }

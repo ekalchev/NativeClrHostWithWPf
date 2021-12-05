@@ -27,12 +27,18 @@
     <ClInclude Include="CppClrHostWithWPF.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SplashScreen.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CppClrHostWithWPF.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="RuntimeHostV4.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SplashScreen.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -42,10 +48,22 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="small.ico">
+    <Image Include="CppClrHostWithWPF.ico">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="CppClrHostWithWPF.ico">
+    <Image Include="progress%400.8x.gif">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="progress%401.2x.gif">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="progress%401.6x.gif">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="progress%401x.gif">
+      <Filter>Resource Files</Filter>
+    </Image>
+    <Image Include="bitmap1.bmp">
       <Filter>Resource Files</Filter>
     </Image>
   </ItemGroup>

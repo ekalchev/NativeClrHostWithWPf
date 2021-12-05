@@ -141,19 +141,25 @@
   <ItemGroup>
     <ClInclude Include="CppClrHostWithWPF.h" />
     <ClInclude Include="framework.h" />
+    <ClInclude Include="SplashScreen.h" />
     <ClInclude Include="Resource.h" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="CppClrHostWithWPF.cpp" />
+    <ClCompile Include="SplashScreen.cpp" />
     <ClCompile Include="RuntimeHostV4.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="CppClrHostWithWPF.rc" />
   </ItemGroup>
   <ItemGroup>
+    <Image Include="bitmap1.bmp" />
     <Image Include="CppClrHostWithWPF.ico" />
-    <Image Include="small.ico" />
+    <Image Include="progress%400.8x.gif" />
+    <Image Include="progress%401.2x.gif" />
+    <Image Include="progress%401.6x.gif" />
+    <Image Include="progress%401x.gif" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
