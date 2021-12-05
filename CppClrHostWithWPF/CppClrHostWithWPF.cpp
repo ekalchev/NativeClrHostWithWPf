@@ -6,13 +6,17 @@
 #include <sstream>
 #include "SplashScreen.h"
 #include <versionhelpers.h>
+#include <winuser.h>
 
 #define WM_INITCLR (WM_USER + 0x0001)
+#define SPLASH_WINDOW_WIDTH_DIPS 520
+#define SPLASH_WINDOW_HEIGHT_DIPS 516
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
 HWND hSplashScreenWnd;
 SplashScreen* pSplashScreen;
+Gdiplus::Color windowBorderColor = Gdiplus::Color::MakeARGB(255, 173, 173, 173);
 
 // Forward declarations of functions included in this code module:
 ATOM                SplashRegisterClass(HINSTANCE hInstance);
@@ -151,16 +155,27 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 	// old trick (a hidden owner window) to make the splash screen appear in the Alt+Tab list, but not in the taskbar. 
 	// If you want the splash screen to also appear in the taskbar, you could drop the hidden owner window.
 
-	HWND hwndOwner = CreateWindowExW(WS_EX_TOOLWINDOW, L"DummyWindow", nullptr, 0,
+	HWND hwndOwner = CreateWindowEx(WS_EX_TOOLWINDOW, L"DummyWindow", nullptr, 0,
 		0, 0, 0, 0, nullptr, nullptr, hInstance, NULL);
 
 	/*hSplashScreenWnd = CreateWindowExW(WS_EX_LAYERED, L"SplashScreen", NULL, WS_POPUP | WS_VISIBLE,
 		0, 0, 0, 0, hwndOwner, NULL, hInstance, NULL);*/
 
-	hSplashScreenWnd = CreateWindowW(L"SplashScreen", L"SplashScreenTitle", WS_OVERLAPPED,
-		CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, hwndOwner, nullptr, hInstance, nullptr);
+	HMONITOR monitor = MonitorFromWindow(hwndOwner, MONITOR_DEFAULTTONEAREST);
+	MONITORINFO info;
+	info.cbSize = sizeof(MONITORINFO);
+	GetMonitorInfo(monitor, &info);
+	int monitor_width = info.rcMonitor.right - info.rcMonitor.left;
+	int monitor_height = info.rcMonitor.bottom - info.rcMonitor.top;
 
-	SetWindowLong(hSplashScreenWnd, GWL_STYLE, 0);
+	// TODO - test with windows 7, alternative function GetDpiForMonitor
+	double dpiScale = 96.0 / GetDpiForWindow(hwndOwner);
+	int splash_window_dpiAware_width = SPLASH_WINDOW_WIDTH_DIPS / dpiScale;
+	int splash_window_dpiAware_height = SPLASH_WINDOW_HEIGHT_DIPS / dpiScale;
+
+	int x = (monitor_width - splash_window_dpiAware_width) / 2;
+	int y = (monitor_height - splash_window_dpiAware_height) / 2;
+	hSplashScreenWnd = CreateWindowEx(0, L"SplashScreen", L"SplashScreenTitle", WS_POPUP, x, y, splash_window_dpiAware_width, splash_window_dpiAware_height, hwndOwner, nullptr, hInstance, nullptr);
 
 	if (!hSplashScreenWnd)
 	{
@@ -191,7 +206,8 @@ LRESULT CALLBACK WndProcSplashScreen(HWND hWnd, UINT message, WPARAM wParam, LPA
 		RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main", (void*)hideSplashScreen);
 		break;
 	case WM_CREATE:
-		pSplashScreen = new SplashScreen(hInst, hWnd);
+		
+		pSplashScreen = new SplashScreen(hInst, hWnd, windowBorderColor);
 		pSplashScreen->Play();
 		break;
 	case WM_PAINT:
@@ -204,8 +220,9 @@ LRESULT CALLBACK WndProcSplashScreen(HWND hWnd, UINT message, WPARAM wParam, LPA
 	}
 	break;
 	case WM_NCHITTEST: {
+		// enable to move the window by clicking on the client area
 		LRESULT hit = DefWindowProc(hWnd, message, wParam, lParam);
-		if (hit == HTCLIENT) hit = HTCAPTION; // move window by clicking its client area
+		if (hit == HTCLIENT) hit = HTCAPTION;
 		return hit;
 	}
 	case WM_DESTROY:

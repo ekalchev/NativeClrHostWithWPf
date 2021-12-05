@@ -2,7 +2,7 @@
 #include "SplashScreen.h"
 
 
-SplashScreen::SplashScreen(HINSTANCE hInstance, HWND hWnd)
+SplashScreen::SplashScreen(HINSTANCE hInstance, HWND hWnd, Gdiplus::Color windowBorderColor)
 {
 	m_hWnd = hWnd;
 	m_iCurrentFrame = 0;
@@ -10,6 +10,11 @@ SplashScreen::SplashScreen(HINSTANCE hInstance, HWND hWnd)
 	m_pImage = LoadImageFromResource(MAKEINTRESOURCE(IDI_LOADING_GIF1_0x), L"GIF");
 	m_timerId = 10001;
 
+	RECT rect;
+	GetWindowRect(hWnd, &rect);
+	m_windowSize = new Gdiplus::Size(rect.right - rect.left, rect.bottom - rect.top);
+
+	m_windowBorderPen = new Gdiplus::Pen(windowBorderColor, 1.0f);
 	//First of all we should get the number of frame dimensions
 	//Images considered by GDI+ as:
 	//frames[animation_frame_index][how_many_animation];
@@ -30,7 +35,7 @@ SplashScreen::SplashScreen(HINSTANCE hInstance, HWND hWnd)
 	UINT TotalBuffer = m_pImage->GetPropertyItemSize(PropertyTagFrameDelay);
 	m_pItem = (Gdiplus::PropertyItem*)malloc(TotalBuffer);
 	m_pImage->GetPropertyItem(PropertyTagFrameDelay, TotalBuffer, m_pItem);
-	m_pMemBitmap = new Gdiplus::Bitmap(m_pImage->GetWidth(), m_pImage->GetHeight());
+	m_pMemBitmap = new Gdiplus::Bitmap(m_windowSize->Width, m_windowSize->Height);
 }
 
 SplashScreen::~SplashScreen()
@@ -54,6 +59,9 @@ SplashScreen::~SplashScreen()
 	{
 		delete m_pImage;
 	}
+
+	delete m_windowSize;
+	delete m_windowBorderPen;
 }
 
 //To start play
@@ -97,24 +105,15 @@ void SplashScreen::OnTimer(UINT_PTR nIDEvent)
 //Present current frame
 void SplashScreen::DrawCurrentFrame(HDC hdc)
 {
-	RECT rcClient;
-	GetClientRect(m_hWnd, &rcClient);
+	using namespace Gdiplus;
 
 	Gdiplus::Graphics* pMemGraphics = Gdiplus::Graphics::FromImage(m_pMemBitmap);
-	Gdiplus::Status status = pMemGraphics->DrawImage(m_pImage, 0, 0, m_pImage->GetWidth(), m_pImage->GetHeight());
-
-	if (status != Gdiplus::Status::Ok)
-	{
-		//error
-	}
+	pMemGraphics->DrawImage(m_pImage, 0, 0, m_pImage->GetWidth(), m_pImage->GetHeight());
+	Rect rect = Rect(0, 0, m_windowSize->Width - 1, m_windowSize->Height - 1);
+	pMemGraphics->DrawRectangle(m_windowBorderPen, rect);
 
 	Gdiplus::Graphics* pHdc = new Gdiplus::Graphics(hdc);
-	status = pHdc->DrawImage(m_pMemBitmap, 0, 0);
-
-	if (status != Gdiplus::Status::Ok)
-	{
-		//error
-	}
+	pHdc->DrawImage(m_pMemBitmap, 0, 0);
 
 	delete pHdc;
 	delete pMemGraphics;
