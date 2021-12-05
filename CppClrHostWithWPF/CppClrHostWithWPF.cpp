@@ -5,20 +5,22 @@
 #include "CppClrHostWithWPF.h"
 #include <sstream>
 
-#define MAX_LOADSTRING 100
+#include <objidl.h>
+#include <gdiplus.h>
+#pragma comment(lib,"gdiplus.lib")
+
 #define WM_INITCLR (WM_USER + 0x0001)
+
+using namespace Gdiplus;
 
 // Global Variables:
 HINSTANCE hInst;                                // current instance
-WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 HWND hSplashScreenWnd;
 
 // Forward declarations of functions included in this code module:
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
 
 HRESULT RuntimeHost(PCWSTR pszVersion, PCWSTR pszAssemblyPath, PCWSTR pszClassName, PCWSTR pszStaticMethodName, void* pHostCallback);
 
@@ -30,6 +32,62 @@ void hideSplashScreen()
     }
 }
 
+HBITMAP loadImageWithGdiPlus(LPCTSTR pszPngPath)
+{
+    wchar_t error[4096];
+
+    Image *pImage = Image::FromFile(pszPngPath);
+    
+    if (pImage->GetLastStatus() != Status::Ok)
+    {
+        wprintf(L"%s failed to load through GDI+", error);
+    }
+
+    UINT count = pImage->GetFrameDimensionsCount();
+
+    //Now we should get the identifiers for the frame dimensions 
+    auto m_pDimensionIDs = new GUID[count];
+    pImage->GetFrameDimensionsList(m_pDimensionIDs, count);
+
+    //For gif image , we only care about animation set#0
+    WCHAR strGuid[39];
+    StringFromGUID2(m_pDimensionIDs[0], strGuid, 39);
+    auto m_FrameCount = pImage->GetFrameCount(&m_pDimensionIDs[0]);
+
+    //PropertyTagFrameDelay is a pre-defined identifier 
+    //to present frame-delays by GDI+
+    UINT TotalBuffer = pImage->GetPropertyItemSize(PropertyTagFrameDelay);
+    auto m_pItem = (PropertyItem*)malloc(TotalBuffer);
+    pImage->GetPropertyItem(PropertyTagFrameDelay, TotalBuffer, m_pItem);
+
+    int width = pImage->GetWidth();
+    int height = pImage->GetHeight();
+
+    BITMAPINFO bmi;
+    bmi.bmiHeader.biBitCount = 32;
+    bmi.bmiHeader.biClrImportant = 0;
+    bmi.bmiHeader.biClrUsed = 0;
+    bmi.bmiHeader.biCompression = BI_RGB;
+    bmi.bmiHeader.biHeight = height;
+    bmi.bmiHeader.biPlanes = 1;
+    bmi.bmiHeader.biSize = sizeof(bmi.bmiHeader);
+    bmi.bmiHeader.biSizeImage = 0; //calc later
+    bmi.bmiHeader.biWidth = width;
+    bmi.bmiHeader.biXPelsPerMeter = 0;
+    bmi.bmiHeader.biYPelsPerMeter = 0;
+    BYTE* pBmp = NULL;
+    HBITMAP hbm = CreateDIBSection(NULL, &bmi, DIB_RGB_COLORS, (void**)&pBmp, NULL, 0);
+    HDC hdc = CreateCompatibleDC(NULL);
+    HGDIOBJ hobj = SelectObject(hdc, hbm);
+
+    Graphics graphics(hdc);
+    graphics.DrawImage(pImage, 0, 0);
+
+    SelectObject(hdc, hobj);
+    DeleteDC(hdc);
+    return hbm;
+}
+
 int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
                      _In_opt_ HINSTANCE hPrevInstance,
                      _In_ LPWSTR    lpCmdLine,
@@ -38,9 +96,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
-    // Initialize global strings
-    LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
-    LoadStringW(hInstance, IDC_CPPCLRHOSTWITHWPF, szWindowClass, MAX_LOADSTRING);
     MyRegisterClass(hInstance);
 
     // Perform application initialization:
@@ -48,8 +103,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
     {
         return FALSE;
     }
-
-    HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDC_CPPCLRHOSTWITHWPF));
 
     MSG msg;
 
@@ -60,15 +113,22 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
         //log
     }
 
+    GdiplusStartupInput gdiplusStartupInput;
+    ULONG_PTR           gdiplusToken;
+
+    GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
+
     // Main message loop:
     while (GetMessage(&msg, nullptr, 0, 0))
     {
-        if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+        if (!TranslateAccelerator(msg.hwnd, 0, &msg))
         {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
     }
+
+    GdiplusShutdown(gdiplusToken);
 
     return (int) msg.wParam;
 }
@@ -89,12 +149,12 @@ ATOM MyRegisterClass(HINSTANCE hInstance)
     wcex.cbClsExtra     = 0;
     wcex.cbWndExtra     = 0;
     wcex.hInstance      = hInstance;
-    wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_CPPCLRHOSTWITHWPF));
+    wcex.hIcon = nullptr;
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
-    wcex.lpszMenuName = MAKEINTRESOURCEW(IDC_CPPCLRHOSTWITHWPF);
-    wcex.lpszClassName = szWindowClass;
-    wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_SMALL));
+    wcex.lpszMenuName = nullptr;
+    wcex.lpszClassName = L"SplashScreen";
+    wcex.hIconSm = nullptr;
 
     return RegisterClassExW(&wcex);
 }
@@ -116,13 +176,13 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
    // old trick (a hidden owner window) to make the splash screen appear in the Alt+Tab list, but not in the taskbar. 
    // If you want the splash screen to also appear in the taskbar, you could drop the hidden owner window.
 
-   HWND hwndOwner = CreateWindowExW(WS_EX_TOOLWINDOW, szWindowClass, NULL, NULL,
-       0, 0, 0, 0, NULL, NULL, hInstance, NULL);
+   HWND hwndOwner = CreateWindowExW(WS_EX_TOOLWINDOW, L"SplashScreen", nullptr, 0,
+       0, 0, 0, 0, nullptr, nullptr, hInstance, NULL);
 
    //hSplashScreenWnd = CreateWindowExW(WS_EX_LAYERED, szWindowClass, NULL, WS_POPUP | WS_VISIBLE,
    //    0, 0, 0, 0, hwndOwner, NULL, hInstance, NULL);
 
-   hSplashScreenWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+   hSplashScreenWnd = CreateWindowW(L"SplashScreen", L"SplashScreenTitle", WS_OVERLAPPEDWINDOW,
        CW_USEDEFAULT, 0, CW_USEDEFAULT, 0, hwndOwner, nullptr, hInstance, nullptr);
 
    if (!hSplashScreenWnd)
@@ -168,24 +228,4 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
         return DefWindowProc(hWnd, message, wParam, lParam);
     }
     return 0;
-}
-
-// Message handler for about box.
-INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
-{
-    UNREFERENCED_PARAMETER(lParam);
-    switch (message)
-    {
-    case WM_INITDIALOG:
-        return (INT_PTR)TRUE;
-
-    case WM_COMMAND:
-        if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
-        {
-            EndDialog(hDlg, LOWORD(wParam));
-            return (INT_PTR)TRUE;
-        }
-        break;
-    }
-    return (INT_PTR)FALSE;
 }
