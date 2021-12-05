@@ -63,8 +63,5 @@
     <Image Include="progress%401x.gif">
       <Filter>Resource Files</Filter>
     </Image>
-    <Image Include="bitmap1.bmp">
-      <Filter>Resource Files</Filter>
-    </Image>
   </ItemGroup>
 </Project>

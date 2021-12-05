@@ -5,6 +5,7 @@
 #include "CppClrHostWithWPF.h"
 #include <sstream>
 #include "SplashScreen.h"
+#include <versionhelpers.h>
 
 #define WM_INITCLR (WM_USER + 0x0001)
 
@@ -37,6 +38,14 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,
 {
 	UNREFERENCED_PARAMETER(hPrevInstance);
 	UNREFERENCED_PARAMETER(lpCmdLine);
+
+	// this might missing in Windows 7 - test it
+	if (IsWindowsVersionOrGreater(HIBYTE(NTDDI_WIN10_RS2), LOBYTE(NTDDI_WIN10_RS2), 0)) {
+		SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
+	}
+	else {
+		SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE);
+	}
 
 	SplashRegisterClass(hInstance);
 	DummyWindowRegisterClass(hInstance);
@@ -179,7 +188,7 @@ LRESULT CALLBACK WndProcSplashScreen(HWND hWnd, UINT message, WPARAM wParam, LPA
 	switch (message)
 	{
 	case WM_INITCLR:
-		//RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main", (void*)hideSplashScreen);
+		RuntimeHost(L"v4.0.30319", L"ApplicationLib.dll", L"ApplicationLib.EntryPoint", L"Main", (void*)hideSplashScreen);
 		break;
 	case WM_CREATE:
 		pSplashScreen = new SplashScreen(hInst, hWnd);
