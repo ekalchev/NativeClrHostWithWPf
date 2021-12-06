@@ -9,3 +9,4 @@
 - Calling arbitrary method https://www.titanwolf.org/Network/q/bfd28e93-b6a4-4b11-8d22-788feaa9870b/y
 - Splash screen https://faithlife.codes/blog/2008/09/displaying_a_splash_screen_with_c_introduction/
 - Example of CLR host - https://github.com/aspnet/dnx/blob/603db3e527bbfc18dcb6e4210010580ed635c6a9/src/dnx.clr/KatanaManager.h
+- https://www.codeproject.com/Articles/416471/CLR-Hosting-Customizing-the-CLR
